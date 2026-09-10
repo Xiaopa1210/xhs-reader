@@ -24,14 +24,35 @@ app.get('/api/xhs', async (req, res) => {
     });
 
     const page = await browser.newPage();
+    
+    // 模拟真实手机浏览器
+    await page.setViewport({ width: 390, height: 844 });
     await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
+    
+    // 设置cookies和headers让小红书认为是真实用户
     await page.setExtraHTTPHeaders({
-      'Accept-Language': 'zh-CN,zh;q=0.9'
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
     });
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+    // 处理短链接：先访问获取重定向
+    let targetUrl = url;
+    if (url.includes('xhslink')) {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      targetUrl = page.url();
+    }
 
-    const data = await page.evaluate(() => {
+    // 访问目标页面
+    await page.goto(targetUrl, { waitUntil: 'networkidle0', timeout: 30000 });
+    
+    // 等待页面渲染
+    await new Promise(r => setTimeout(r, 3000));
+
+    // 尝试从 __INITIAL_STATE__ 提取
+    let data = await page.evaluate(() => {
       const state = window.__INITIAL_STATE__;
       if (!state || !state.note || !state.note.noteDetailMap) return null;
       const noteMap = state.note.noteDetailMap;
@@ -51,8 +72,22 @@ app.get('/api/xhs', async (req, res) => {
       };
     });
 
+    // 如果没拿到，尝试从页面DOM直接提取
     if (!data) {
-      return res.status(200).json({ error: '无法解析页面内容' });
+      data = await page.evaluate(() => {
+        const title = document.querySelector('#detail-title')?.textContent 
+          || document.querySelector('.title')?.textContent || '';
+        const desc = document.querySelector('#detail-desc')?.textContent
+          || document.querySelector('.desc')?.textContent || '';
+        const user = document.querySelector('.user-name')?.textContent
+          || document.querySelector('.username')?.textContent || '';
+        if (!title && !desc) return null;
+        return { title, description: desc, user };
+      });
+    }
+
+    if (!data) {
+      return res.status(200).json({ error: '无法解析页面内容，小红书可能限制了访问' });
     }
 
     return res.status(200).json(data);
