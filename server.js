@@ -5,9 +5,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const XHS_COOKIES = [
-  { name: 'a1', value: '1a08b178d4av3predzrs7fonw4jg0o57ytfok1wai50000329653', domain: '.xiaohongshu.com' },
-  { name: 'web_session', value: '040069b837cdd68', domain: '.xiaohongshu.com' },
-  { name: 'webId', value: 'c09af375ddccf321', domain: '.xiaohongshu.com' },
+  { name: 'a1', value: process.env.XHS_A1 || '', domain: '.xiaohongshu.com' },
+  { name: 'web_session', value: process.env.XHS_SESSION || '', domain: '.xiaohongshu.com' },
+  { name: 'webId', value: process.env.XHS_WEBID || '', domain: '.xiaohongshu.com' }
 ];
 
 app.get('/api/xhs', async (req, res) => {
@@ -32,6 +32,9 @@ app.get('/api/xhs', async (req, res) => {
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    });
 
     // 注入cookie
     await page.setCookie(...XHS_COOKIES);
@@ -67,7 +70,6 @@ app.get('/api/xhs', async (req, res) => {
       };
     });
 
-    // 备用：从DOM提取
     if (!data) {
       data = await page.evaluate(() => {
         const title = document.querySelector('#detail-title')?.textContent
