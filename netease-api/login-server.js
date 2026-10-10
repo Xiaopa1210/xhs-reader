@@ -2,10 +2,10 @@ const NeteaseCloudMusicApi = require('NeteaseCloudMusicApi');
 const express = require('express');
 const app = express();
 const fs = require('fs');
-const COOKIE_FILE = '/home/ubuntu/netease-api/cookie.txt';
+const COOKIE_FILE = '/root/netease-api/cookie.txt';
 
 let savedCookie = '';
-try { savedCookie = fs.readFileSync(COOKIE_FILE, 'utf8'); } catch(e) {}
+try { savedCookie = fs.readFileSync(COOKIE_FILE, 'utf8').trim(); } catch(e) {}
 
 app.use(express.json());
 
